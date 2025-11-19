@@ -37,8 +37,11 @@ def parse_rollout_stats(
                 *vis_resolution,
                 3,
             ):
-                # vis frame
-                vis_frames.append(v)
+                # vis frame - 确保转换为 CPU numpy，避免 GPU 内存泄漏
+                if isinstance(v, torch.Tensor):
+                    vis_frames.append(v.cpu().numpy())
+                else:
+                    vis_frames.append(v)
             else:
                 raise RuntimeError(
                     f"infos[{k}].shape = {v.shape} != rewards.shape = {rewards.squeeze(dim=1).shape}"

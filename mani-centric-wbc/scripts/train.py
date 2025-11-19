@@ -11,6 +11,7 @@ from legged_gym.rsl_rl.runners.on_policy_runner import (
 
 @hydra.main(config_path="../config", config_name="train", version_base="1.2")
 def train(config):
+    print(config.env.cfg.env.num_envs)
     config_dict = OmegaConf.to_container(config, resolve=True)
     setup(config_dict, seed=config.seed)  # type: ignore
     sim_params = gymapi.SimParams()
