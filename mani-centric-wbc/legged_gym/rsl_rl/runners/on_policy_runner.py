@@ -159,15 +159,27 @@ class OnPolicyRunner:
                 ).items()
             }
         )
-        frames = np.stack(vis_frames)  # (num_frames, height, width, 3)
-        # wandb requires (num_frames, height, width, 3) -> (num_frames, 3, height, width)
-        stats["eval/vis"] = wandb.Video(
-            frames.transpose(0, 3, 1, 2),
-            fps=int(1 / self.env.gym_dt),
-            format="mp4",
-        )
-        vis_frames.clear()
+        # 只在有视频帧时才创建视频，避免不必要的编码开销
+        if len(vis_frames) > 0:
+            frames = np.stack(vis_frames)  # (num_frames, height, width, 3)
+            # wandb requires (num_frames, height, width, 3) -> (num_frames, 3, height, width)
+            stats["eval/vis"] = wandb.Video(
+                frames.transpose(0, 3, 1, 2),
+                fps=int(1 / self.env.gym_dt),
+                format="mp4",
+            )
+            # 显式删除视频帧数据，释放内存
+            del frames
+            vis_frames.clear()
+        
+        # 清理评估存储，释放 GPU 内存
+        self.eval_storage.clear()
         self.alg.storage = self.train_storage
+        
+        # 如果使用 GPU，清理缓存
+        if self.device != "cpu":
+            torch.cuda.empty_cache()
+        
         self.env.cfg.domain_rand.push_robots = should_push_robots
         self.env.cfg.domain_rand.transport_robots = should_transport_robots
         return stats
@@ -278,6 +290,8 @@ class OnPolicyRunner:
                     fps=int(1 / self.env.gym_dt),
                     format="mp4",
                 )
+                # 显式删除视频帧数据，释放内存
+                del frames
                 vis_frames.clear()
 
             wandb.log(stats, step=it)
