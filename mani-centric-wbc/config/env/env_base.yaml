@@ -58,7 +58,7 @@ cfg:
     num_observations: ${eval:"sum(int(v['dim']) for v in ${env.state_obs}.values() if 'dim' in v) + sum([int(v['dim']) for v in ${env.setup_obs}.values() if 'dim' in v]) + sum(int(v['obs_dim']) for v in ${env.tasks}.values() if 'obs_dim' in v) + ${env.controller.control_dim}"}
     num_privileged_obs: ???
     num_actions: ???
-    num_envs: 4096
+    num_envs: 512
     episode_length_s: 10.0
     send_timeouts: true
 
