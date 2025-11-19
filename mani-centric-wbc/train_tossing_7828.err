@@ -1,9 +1,0 @@
-wandb: Currently logged in as: hhhappyshow (hhhappyshow-institution) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run 4p550gd6
-wandb: Tracking run with wandb version 0.23.0
-wandb: Run data is saved locally in /mnt/slurmfs-4090node1/homes/yzhong369/Desktop/umi-on-legs/mani-centric-wbc/wandb/run-20251119_142928-4p550gd6
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run winter-water-31
-wandb: ⭐️ View project at https://wandb.ai/hhhappyshow-institution/quadruped
-wandb: 🚀 View run at https://wandb.ai/hhhappyshow-institution/quadruped/runs/4p550gd6
-slurmstepd: error: *** JOB 7828 ON 3090node2 CANCELLED AT 2025-11-19T14:31:52 ***
