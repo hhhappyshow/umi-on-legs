@@ -463,9 +463,31 @@ class IsaacGymEnv(VecEnv):
             state_obs=self.state_obs,
             setup_obs=self.setup_obs,
         )
-        self.obs_history = torch.cat(
-            (self.obs_history[:, 1:, :], obs.unsqueeze(1)), dim=1
-        )
+        # 1 # cat方法可以将历史观测和新的观测拼接起来（不仅是值，还包括梯度和计算图等），但是会占用最多的内存
+        # self.obs_history = torch.cat(
+        #     (self.obs_history[:, 1:, :], obs.unsqueeze(1)), dim=1
+        # )
+        # 2
+        # with torch.no_grad():#也没用
+            # self.obs_history[:, :-1, :] = self.obs_history[:, 1:, :]
+            # self.obs_history[:, -1, :] = obs
+        # self.obs_history[:, :-1, :] = self.obs_history[:, 1:, :]
+        # self.obs_history[:, -1, :] = obs
+        # 3 # roll + =方法可以将历史观测和新的观测拼接起来（仅是值，不包括梯度和计算图等），但是会占用第二多的内存
+        self.obs_history = torch.roll(self.obs_history, shifts=-1, dims=1)
+        self.obs_history[:, -1, :] = obs
+        # with torch.no_grad():
+        #     self.obs_history[:, -1, :] = obs
+        # 4
+        # with torch.no_grad():#也没用
+        #     self.obs_history[:, :-1, :] = self.obs_history[:, 1:, :].clone()
+        #     self.obs_history[:, -1, :] = obs
+        # self.obs_history[:, :-1, :] = self.obs_history[:, 1:, :].clone()
+        # self.obs_history[:, -1, :] = obs
+        # 5
+        # self.obs_history[:, :-1, :].copy_(self.obs_history[:, 1:, :])
+        # self.obs_history[:, -1, :].copy_(obs)
+
         privileged_obs = self.get_observations(
             state=self.state,
             setup=self.setup,

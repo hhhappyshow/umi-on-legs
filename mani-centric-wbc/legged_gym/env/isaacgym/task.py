@@ -684,20 +684,26 @@ class ReachingLinkTask(Task):
         self.past_pos_err = (1 - smoothing) * self.past_pos_err + smoothing * pos_err
         self.past_orn_err = (1 - smoothing) * self.past_orn_err + smoothing * orn_err
 
-        self.link_pose_history = torch.cat(
-            [
-                self.link_pose_history[:, 1:],
-                self.get_link_pose(state=state).unsqueeze(1),
-            ],
-            dim=1,
-        )
-        self.root_pose_history = torch.cat(
-            [
-                self.root_pose_history[:, 1:],
-                state.root_pose.clone().unsqueeze(1),
-            ],
-            dim=1,
-        )
+        # self.link_pose_history = torch.cat(
+        #     [
+        #         self.link_pose_history[:, 1:],
+        #         self.get_link_pose(state=state).unsqueeze(1),
+        #     ],
+        #     dim=1,
+        # )
+        # self.root_pose_history = torch.cat(
+        #     [
+        #         self.root_pose_history[:, 1:],
+        #         state.root_pose.clone().unsqueeze(1),
+        #     ],
+        #     dim=1,
+        # )
+        self.link_pose_history = torch.roll(self.link_pose_history, shifts=-1, dims=1)
+        self.link_pose_history[:,-1, :, :] = self.get_link_pose(state=state)
+        self.root_pose_history = torch.roll(self.root_pose_history, shifts=-1, dims=1)
+        self.root_pose_history[:,-1, :, :] = state.root_pose.clone()
+
+
         self.steps += 1
         return {
             "pos_err": pos_err,

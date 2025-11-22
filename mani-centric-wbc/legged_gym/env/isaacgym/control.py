@@ -20,7 +20,9 @@ class Control:
     )  # (num_envs, buffer_len, control_dim) the buffer of past targets
 
     def push(self, action: torch.Tensor):
-        self.buffer = torch.cat((action[:, None, :], self.buffer[:, :-1]), dim=1)
+        # self.buffer = torch.cat((action[:, None, :], self.buffer[:, :-1]), dim=1)
+        self.buffer = torch.roll(self.buffer, shifts=1, dims=1)
+        self.buffer[:, 0, :] = action
 
     @property
     def prev_action(self):

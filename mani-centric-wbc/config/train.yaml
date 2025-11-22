@@ -6,7 +6,7 @@ defaults:
   - _self_
 
 runner:
-  max_iterations:  ${eval:"1000 if 'locomotion' in ${env.tasks} else 4000"} # locomotion converges faster
+  max_iterations:  ${eval:"1000 if 'locomotion' in ${env.tasks} else 20000"} # locomotion converges faster
   device: ${env.sim_device}
   alg:
     gamma: 0.99
