@@ -120,8 +120,10 @@ class VelocityController(PDController):
     ):
         dt = state.sim_dt
 
-        curr_vel = state.dof_vel.clone()
-        prev_vel = state.dof_vel.clone()
+        # curr_vel = state.dof_vel.clone()
+        # prev_vel = state.dof_vel.clone()
+        curr_vel = state.dof_vel
+        prev_vel = state.dof_vel
         torques = (
             self.kp * (normalized_action - curr_vel)
             - self.kd * (curr_vel - prev_vel) / dt
@@ -135,8 +137,10 @@ class PositionController(PDController):
         normalized_action: torch.Tensor,
         state: EnvState,
     ):
-        curr_pos = state.dof_pos.clone()
-        curr_vel = state.dof_vel.clone()
+        # curr_pos = state.dof_pos.clone()
+        # curr_vel = state.dof_vel.clone()
+        curr_pos = state.dof_pos
+        curr_vel = state.dof_vel
         assert normalized_action.shape == curr_pos.shape
         assert curr_vel.shape == curr_pos.shape
         if normalized_action.shape[0] != self.kp.shape[0]:

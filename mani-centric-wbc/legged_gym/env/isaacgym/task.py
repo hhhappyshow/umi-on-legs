@@ -708,8 +708,10 @@ class ReachingLinkTask(Task):
         return {
             "pos_err": pos_err,
             "orn_err": orn_err,
-            "smoothed_pos_err": self.past_pos_err.clone(),
-            "smoothed_orn_err": self.past_orn_err.clone(),
+            # "smoothed_pos_err": self.past_pos_err.clone(),
+            # "smoothed_orn_err": self.past_orn_err.clone(),
+            "smoothed_pos_err": self.past_pos_err,
+            "smoothed_orn_err": self.past_orn_err,
             "pos_sigma_level": torch.ones_like(pos_err, device=self.device)
             * self.pos_sigma_curriculum_level,
             "orn_sigma_level": torch.ones_like(orn_err, device=self.device)
