@@ -684,26 +684,34 @@ class ReachingLinkTask(Task):
         self.past_pos_err = (1 - smoothing) * self.past_pos_err + smoothing * pos_err
         self.past_orn_err = (1 - smoothing) * self.past_orn_err + smoothing * orn_err
 
-        self.link_pose_history = torch.cat(
-            [
-                self.link_pose_history[:, 1:],
-                self.get_link_pose(state=state).unsqueeze(1),
-            ],
-            dim=1,
-        )
-        self.root_pose_history = torch.cat(
-            [
-                self.root_pose_history[:, 1:],
-                state.root_pose.clone().unsqueeze(1),
-            ],
-            dim=1,
-        )
+        # self.link_pose_history = torch.cat(
+        #     [
+        #         self.link_pose_history[:, 1:],
+        #         self.get_link_pose(state=state).unsqueeze(1),
+        #     ],
+        #     dim=1,
+        # )
+        # self.root_pose_history = torch.cat(
+        #     [
+        #         self.root_pose_history[:, 1:],
+        #         state.root_pose.clone().unsqueeze(1),
+        #     ],
+        #     dim=1,
+        # )
+        self.link_pose_history = torch.roll(self.link_pose_history, shifts=-1, dims=1)
+        self.link_pose_history[:,-1, :, :] = self.get_link_pose(state=state)
+        self.root_pose_history = torch.roll(self.root_pose_history, shifts=-1, dims=1)
+        self.root_pose_history[:,-1, :, :] = state.root_pose.clone()
+
+
         self.steps += 1
         return {
             "pos_err": pos_err,
             "orn_err": orn_err,
-            "smoothed_pos_err": self.past_pos_err.clone(),
-            "smoothed_orn_err": self.past_orn_err.clone(),
+            # "smoothed_pos_err": self.past_pos_err.clone(),
+            # "smoothed_orn_err": self.past_orn_err.clone(),
+            "smoothed_pos_err": self.past_pos_err,
+            "smoothed_orn_err": self.past_orn_err,
             "pos_sigma_level": torch.ones_like(pos_err, device=self.device)
             * self.pos_sigma_curriculum_level,
             "orn_sigma_level": torch.ones_like(orn_err, device=self.device)

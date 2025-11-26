@@ -101,6 +101,9 @@ class RolloutStorage:
         self.returns = torch.zeros(
             num_transitions_per_env, num_envs, 1, device=self.device
         )
+        self.deltas = torch.zeros(
+            num_transitions_per_env, num_envs, 1, device=self.device
+        )
         self.advantages = torch.zeros(
             num_transitions_per_env, num_envs, 1, device=self.device
         )
@@ -138,7 +141,16 @@ class RolloutStorage:
         self.mu[self.step].copy_(transition.action_mean)
         self.sigma[self.step].copy_(transition.action_sigma)
         self._save_hidden_states(transition.hidden_states)
-        self.infos.append(copy.deepcopy(transition.infos))
+        # self.infos.append(copy.deepcopy(transition.infos))
+        if transition.infos:
+        # 只复制标量值，tensor 使用 detach().clone() 或直接引用
+            info_copy = {}
+            for k, v in transition.infos.items():
+                if isinstance(v, torch.Tensor):
+                    info_copy[k] = v.detach().clone() if v.requires_grad else v.clone()
+                else:
+                    info_copy[k] = v
+            self.infos.append(info_copy)
         self.step += 1
 
     def _save_hidden_states(self, hidden_states):
@@ -193,6 +205,7 @@ class RolloutStorage:
                 - self.values[step]
             )
             advantage = delta + next_is_not_terminal * gamma * lam * advantage
+            self.deltas[step] = delta
             self.returns[step] = advantage + self.values[step]
 
         # Compute and normalize the advantages
@@ -202,12 +215,31 @@ class RolloutStorage:
         )
         return self.returns
 
-    def mini_batch_generator(self, num_mini_batches: int, num_epochs: int):
+    def mini_batch_generator(
+        self, 
+        num_mini_batches: int, 
+        num_epochs: int,
+        sampling_strategy: Optional[str] = None,
+        sampling_weights: Optional[torch.Tensor] = None,
+        reshuffle_per_epoch: bool = False,
+    ):
+        """
+        生成 minibatch 的生成器
+        
+        Args:
+            num_mini_batches: minibatch 的数量
+            num_epochs: epoch 的数量
+            sampling_strategy: 采样策略，可选值：
+                - None 或 'random': 完全随机采样（默认）
+                - 'advantage': 基于 advantages 的加权采样（高 advantage 的样本更可能被选中）
+                - 'reward': 基于 rewards 的加权采样（高 reward 的样本更可能被选中）
+                - 'delta': 基于 deltas 的加权采样（高 delta 的样本更可能被选中）
+            sampling_weights: 自定义采样权重，形状为 [batch_size]，仅在 sampling_strategy='custom' 时使用
+            reshuffle_per_epoch: 是否在每个 epoch 开始时重新打乱索引（默认 False，所有 epoch 使用相同顺序）
+        """
         batch_size = self.num_envs * self.num_transitions_per_env
         mini_batch_size = batch_size // num_mini_batches
-        indices = torch.randperm(
-            num_mini_batches * mini_batch_size, requires_grad=False, device=self.device
-        )
+        num_samples = num_mini_batches * mini_batch_size
 
         observations = self.observations.flatten(0, 1)
         if self.privileged_observations is not None:
@@ -223,7 +255,65 @@ class RolloutStorage:
         old_mu = self.mu.flatten(0, 1)
         old_sigma = self.sigma.flatten(0, 1)
 
+        # 计算采样权重
+        if sampling_strategy is None or sampling_strategy == 'random':
+            # 随机采样，不需要权重
+            weights = None
+        elif sampling_strategy == 'advantage':
+            # 基于 advantages 的加权采样
+            # 将 advantages 转换为正权重（使用 softmax 或归一化）
+            advantages_flat = advantages.squeeze(-1) if advantages.dim() > 1 else advantages
+            # 使用 softmax 或简单的归一化
+            weights = torch.softmax(advantages_flat / (advantages_flat.std() + 1e-8), dim=0)
+        elif sampling_strategy == 'reward':
+            # 基于 rewards 的加权采样
+            rewards_flat = self.rewards.flatten(0, 1).squeeze(-1) if self.rewards.dim() > 1 else self.rewards.flatten(0, 1)
+            # 将 rewards 转换为正权重
+            rewards_min = rewards_flat.min()
+            rewards_shifted = rewards_flat - rewards_min + 1e-8  # 确保为正
+            weights = rewards_shifted / rewards_shifted.sum()
+        elif sampling_strategy == 'delta':
+            # 基于 deltas 的加权采样
+            deltas_flat = self.deltas.flatten(0, 1).squeeze(-1) if self.deltas.dim() > 1 else self.deltas.flatten(0, 1)
+            # 将 deltas 转换为正权重
+            deltas_min = deltas_flat.min()
+            deltas_shifted = deltas_flat - deltas_min + 1e-8  # 确保为正
+            weights = deltas_shifted / deltas_shifted.sum()
+        else:
+            raise ValueError(f"Unknown sampling_strategy: {sampling_strategy}")
+
+        # 生成初始索引（用于向后兼容，当 reshuffle_per_epoch=False 时）
+        if weights is not None:
+            # 加权采样：从整个 batch_size 中根据权重采样 num_samples 个索引（有放回）
+            initial_indices = torch.multinomial(
+                weights, 
+                num_samples=num_samples, 
+                replacement=False
+            )
+        else:
+            # 随机采样：从 num_samples 个索引中随机排列（保持原逻辑）
+            initial_indices = torch.randperm(
+                num_samples, requires_grad=False, device=self.device
+            )
+
         for epoch in range(num_epochs):
+            # 根据 reshuffle_per_epoch 决定是否重新生成索引
+            if reshuffle_per_epoch or epoch == 0:
+                # 重新生成索引
+                if weights is not None:
+                    indices = torch.multinomial(
+                        weights, 
+                        num_samples=num_samples, 
+                        replacement=False
+                    )
+                else:
+                    indices = torch.randperm(
+                        num_samples, requires_grad=False, device=self.device
+                    )
+            else:
+                # 复用初始索引（保持向后兼容）
+                indices = initial_indices
+
             for i in range(num_mini_batches):
                 start = i * mini_batch_size
                 end = (i + 1) * mini_batch_size
