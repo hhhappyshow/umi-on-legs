@@ -8,11 +8,10 @@
 
 ### 1. 多种采样策略
 
-实现了三种基于不同指标的优先采样策略：
+实现了两种基于不同指标的优先采样策略：
 
 - **`'random'`** (默认): 完全随机采样，保持原有行为
 - **`'advantage'`**: 基于 advantages 的加权采样
-- **`'reward'`**: 基于 rewards 的加权采样  
 - **`'delta'`**: 基于 TD 误差（deltas）的加权采样
 
 ### 2. 逆权重采样机制
@@ -62,12 +61,6 @@ self.deltas[step] = delta
    weights = torch.softmax(advantages_flat / (advantages_flat.std() + 1e-8), dim=0)
    ```
 
-2. **Reward 策略**:
-   ```python
-   rewards_flat = self.rewards.flatten(0, 1).squeeze(-1)
-   rewards_min = rewards_flat.min()
-   rewards_shifted = rewards_flat - rewards_min + 1e-8
-   weights = rewards_shifted / rewards_shifted.sum()
    ```
 
 3. **Delta 策略**:
@@ -119,7 +112,6 @@ def mini_batch_generator(
 ### 1. 策略选择
 
 - **`'advantage'`**: 适合关注高优势样本，可能有助于快速学习好的策略
-- **`'reward'`**: 适合关注高奖励样本，有助于学习成功经验
 - **`'delta'`**: 适合关注价值估计误差大的样本，有助于提升价值函数估计的准确性
 
 ### 2. 逆权重 vs 正权重
