@@ -284,19 +284,19 @@ class RolloutStorage:
 
         # 生成初始索引（用于向后兼容，当 reshuffle_per_epoch=False 时）
         if weights is not None:
-            # ¼ÓÈ¨²ÉÑù£º´ÓÕû¸ö batch_size ÖÐ¸ù¾ÝÈ¨ÖØ²ÉÑù num_samples ¸öË÷Òý£¨ÓÐ·Å»Ø£©
+            # 加权采样：从整个 batch_size 中根据权重采样 num_samples 个索引（有放回）
             # initial_indices = torch.multinomial(
             #     weights, 
             #     num_samples=num_samples, 
             #     replacement=False
             # )
-            # Ê¹ÓÃÄæÈ¨ÖØ²ÉÑù
+            # 使用逆权重采样
             inv_weights = (weights.max() - weights).clamp_min(1e-8)
             inv_weights = inv_weights / inv_weights.sum()
             initial_indices = torch.multinomial(
                 inv_weights,
                 num_samples=num_samples,
-                replacement=False
+                replacement=True
             )
             
         else:
@@ -315,13 +315,13 @@ class RolloutStorage:
                     #     num_samples=num_samples, 
                     #     replacement=False
                     # )
-                    # Ê¹ÓÃÄæÈ¨ÖØ²ÉÑù
+                    # 使用逆权重采样
                     inv_weights = (weights.max() - weights).clamp_min(1e-8)
                     inv_weights = inv_weights / inv_weights.sum()
                     indices = torch.multinomial(
                         inv_weights,
                         num_samples=num_samples,
-                        replacement=False
+                        replacement=True
                     )
                 else:
                     indices = torch.randperm(
