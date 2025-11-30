@@ -284,26 +284,43 @@ class RolloutStorage:
 
         # 生成初始索引（用于向后兼容，当 reshuffle_per_epoch=False 时）
         if weights is not None:
-            # 加权采样：从整个 batch_size 中根据权重采样 num_samples 个索引（有放回）
+            # ¼ÓÈ¨²ÉÑù£º´ÓÕû¸ö batch_size ÖÐ¸ù¾ÝÈ¨ÖØ²ÉÑù num_samples ¸öË÷Òý£¨ÓÐ·Å»Ø£©
+            # initial_indices = torch.multinomial(
+            #     weights, 
+            #     num_samples=num_samples, 
+            #     replacement=False
+            # )
+            # Ê¹ÓÃÄæÈ¨ÖØ²ÉÑù
+            inv_weights = (weights.max() - weights).clamp_min(1e-8)
+            inv_weights = inv_weights / inv_weights.sum()
             initial_indices = torch.multinomial(
-                weights, 
-                num_samples=num_samples, 
+                inv_weights,
+                num_samples=num_samples,
                 replacement=False
             )
+            
         else:
-            # 随机采样：从 num_samples 个索引中随机排列（保持原逻辑）
+            # Ëæ»ú²ÉÑù£º´Ó num_samples ¸öË÷ÒýÖÐËæ»úÅÅÁÐ£¨±£³ÖÔ­Âß¼­£©
             initial_indices = torch.randperm(
                 num_samples, requires_grad=False, device=self.device
             )
 
         for epoch in range(num_epochs):
-            # 根据 reshuffle_per_epoch 决定是否重新生成索引
+            # ¸ù¾Ý reshuffle_per_epoch ¾ö¶¨ÊÇ·ñÖØÐÂÉú³ÉË÷Òý
             if reshuffle_per_epoch or epoch == 0:
-                # 重新生成索引
+                # ÖØÐÂÉú³ÉË÷Òý
                 if weights is not None:
+                    # indices = torch.multinomial(
+                    #     weights, 
+                    #     num_samples=num_samples, 
+                    #     replacement=False
+                    # )
+                    # Ê¹ÓÃÄæÈ¨ÖØ²ÉÑù
+                    inv_weights = (weights.max() - weights).clamp_min(1e-8)
+                    inv_weights = inv_weights / inv_weights.sum()
                     indices = torch.multinomial(
-                        weights, 
-                        num_samples=num_samples, 
+                        inv_weights,
+                        num_samples=num_samples,
                         replacement=False
                     )
                 else:

@@ -250,7 +250,7 @@ class PPO:
         else:
             # assert False, 'sampling_strategy is not supported for non-recurrent models'
             generator = self.storage.mini_batch_generator(
-                self.num_mini_batches, self.num_learning_epochs, sampling_strategy= 'delta'
+                self.num_mini_batches, self.num_learning_epochs, sampling_strategy= 'advantage'
             )
         for (
             obs_batch,
